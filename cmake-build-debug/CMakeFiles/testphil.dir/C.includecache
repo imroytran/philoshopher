@@ -1,0 +1,24 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/mnt/d/21school/testphil/philo.h
+stdio.h
+-
+stdlib.h
+-
+unistd.h
+-
+sys/time.h
+-
+pthread.h
+-
+
+/mnt/d/21school/testphil/philo_checkfiles.c
+philo.h
+/mnt/d/21school/testphil/philo.h
+

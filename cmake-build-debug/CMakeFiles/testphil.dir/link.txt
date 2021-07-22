@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/testphil.dir/main.c.o CMakeFiles/testphil.dir/philo_ultis.c.o CMakeFiles/testphil.dir/philo_checkfiles.c.o  -o testphil  -pthread 

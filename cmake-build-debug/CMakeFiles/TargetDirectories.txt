@@ -1,0 +1,3 @@
+/mnt/d/21school/testphil/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/mnt/d/21school/testphil/cmake-build-debug/CMakeFiles/edit_cache.dir
+/mnt/d/21school/testphil/cmake-build-debug/CMakeFiles/testphil.dir

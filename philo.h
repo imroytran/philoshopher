@@ -33,21 +33,24 @@ typedef struct s_philo
 	pthread_t	thread;
 	t_options	options;
 	unsigned long	time_of_last_meal;
-	int				times_eaten;
-} t_philo;
-
-typedef struct	s_table
-{
 	unsigned long	start_time;
-	t_philo			*philo;
-	int				id;
+	int				times_eaten;
 	int				*forks;
 	pthread_mutex_t	*check_free;
 	pthread_mutex_t	*change_free;
 	int				status;
-} t_table;
+} t_philo;
 
-
+int	ft_isdigit(int c);
+int	ft_atoi(char const *str);
+unsigned long	get_time(void);
+void	ft_usleep(int length);
+int	print_err(char *err);
+int	check_args(char	**argv);
+void	message(t_philo *philo, char *mess);
+int	check_death(t_philo *philo);
+int	check_eaten(t_philo *philo);
+int	get_options(char **argv, t_options *options);
 
 
 

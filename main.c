@@ -1,267 +1,177 @@
 #include "philo.h"
 
-int	ft_isdigit(int c)
+int eating(t_philo *philo, int left_fork, int right_fork)
 {
-	if (c >= '0' && c <= '9')
-		return (1);
-	return (0);
-}
-
-
-int	ft_atoi(char const *str)
-{
-	unsigned long	n;
-	int				sign;
-
-	sign = 1;
-	while (*str && (*str == ' ' || *str == '\f' || *str == '\n' ||
-			*str == '\r' || *str == '\t' || *str == '\v'))
-		str++;
-	if (*str == '-')
+	philo->forks[left_fork] = 0;
+	philo->forks[right_fork] = 0;
+	message(philo, "has taken a fork");
+	message(philo, "has taken a fork");
+	message(philo, "is eating");
+	philo->time_of_last_meal = get_time();
+	if (!check_death(philo))
 	{
-		sign = -1;
-		str++;
+		message(philo, "died");
+		philo->status = DIED;
+		pthread_mutex_unlock(philo->check_free);
+		return (0) ;
 	}
-	else if (*str == '+')
-		str++;
-	n = 0;
-	while (*str >= 48 && *str <= 57 && *str)
+	philo->times_eaten += 1;
+	if (philo->times_eaten >= philo->options.times_need_to_eat
+		&& philo->options.times_need_to_eat != -1)
 	{
-		n = n * 10 + (*str - 48);
-		if ((long)(sign * n) >= LONG_MAX / 10)
-			return (-1);
-		if ((long)(sign * n) <= LONG_MIN / 10)
-			return (0);
-		str++;
-	}
-	return ((int)(sign * n));
-}
-
-unsigned long	get_time(void)
-{
-	struct timeval	time;
-
-	gettimeofday(&time, NULL);
-	return (time.tv_sec * 1000 + time.tv_usec / 1000);
-}
-
-void	ft_usleep(int length)
-{
-	unsigned long	time;
-
-	time = current_time_in_ms();
-	time += length;
-	while (current_time_in_ms() < time)
-		usleep(500);
-}
-
-int	print_err(char *err)
-{
-	printf("%s\n", err);
-	return (-1);
-}
-
-int	check_args(char	**argv)
-{
-	int	i;
-	char	*temp;
-
-	i = 1;
-	while (argv[i])
-	{
-		temp = argv[i];
-		while (*temp && *temp == '+')
-			temp++;
-		while (*temp)
-		{
-			if (!ft_isdigit(*temp))
-				return (0);
-			temp++;
-		}
-		i++;
-	}
-	return (1);
-}
-
-void	message(t_table *table, char *mess)
-{
-	unsigned long	time;
-
-	time = get_time() - table->start_time;
-	if (table->status == 0)
-		printf("%ldms %d %s\n", time, table->id, mess);
-}
-
-int	check_death(t_options options, unsigned long time_of_last_meal, unsigned long time_now)
-{
-	if (time_now - time_of_last_meal > options.time_to_die)
+		printf("----%d----\n", philo->id);
+		printf("----%d----\n", philo->times_eaten);
+		philo->status = FINISHED;
+		pthread_mutex_unlock(philo->check_free);
 		return (0);
-	return (1);
-}
-
-int	check_eaten(t_table *table)
-{
-	int	i;
-
-	i = 0;
-	while (i < table->philo->options.num_of_philo)
-	{
-		if (table->philo[i].times_eaten < table->philo->options.times_need_to_eat)
-			return (0);
-		i++;
 	}
+	pthread_mutex_unlock(philo->check_free);
+	ft_usleep(philo->options.time_to_eat);
 	return (1);
 }
 
-void	*solution(t_table *table)
+int return_forks(t_philo *philo, int left_fork, int right_fork)
+{
+	pthread_mutex_lock(philo->change_free);
+	philo->forks[left_fork] = 1;
+	philo->forks[right_fork] = 1;
+	message(philo, "is sleeping");
+	pthread_mutex_unlock(philo->change_free);
+	ft_usleep(philo->options.time_to_sleep);
+	pthread_mutex_lock(philo->change_free);
+	message(philo, "is thinking");
+	pthread_mutex_unlock(philo->change_free);
+	return (1);
+}
+void	*solution(void *arg)
 {
 	int	left_fork;
 	int	right_fork;
+	t_philo *philo;
+	
+	philo = (t_philo *)arg;
 	while (1)
 	{
-		pthread_mutex_lock(&(table->check_free));
-		left_fork = table->id - 1;
-		right_fork = table->id % table->philo->options.num_of_philo;
-		if (table->forks[left_fork] && table->forks[right_fork])
+		pthread_mutex_lock(philo->check_free);
+		if (!check_death(philo))
 		{
-			table->forks[left_fork] = 0;
-			table->forks[right_fork] = 0;
-			message(table, "has taken a fork");
-			message(table, "is eating");
-			table->philo[table->id].time_of_last_meal = get_time();
-			if (!check_death)
+			message(philo, "died");
+			philo->status = DIED;
+			pthread_mutex_unlock(philo->check_free);
+			return (NULL) ;
+		}
+		left_fork = philo->id - 1;
+		right_fork = philo->id % philo->options.num_of_philo;
+		if (philo->forks[left_fork] && philo->forks[right_fork])
+		{
+			philo->forks[left_fork] = 0;
+			philo->forks[right_fork] = 0;
+			message(philo, "has taken a fork");
+			message(philo, "has taken a fork");
+			message(philo, "is eating");
+			philo->time_of_last_meal = get_time();
+			philo->times_eaten += 1;
+			if (philo->times_eaten >= philo->options.times_need_to_eat
+				&& philo->options.times_need_to_eat != -1)
 			{
-				message(table, "died");
-				pthread_mutex_unlock(&(table->check_free));
-				table->status = DIED;
-				break ;
+				philo->status = FINISHED;
+				pthread_mutex_unlock(philo->check_free);
+				return (NULL);
 			}
-			if (check_eaten(table))
-			{
-				table->status = FINISHED;
-				pthread_mutex_unlock(&(table->check_free));
-				break ;
-			}
-			table->philo[table->id].times_eaten += 1;
-			pthread_mutex_unlock(&(table->check_free));
-			ft_usleep(table->philo->options.time_to_eat);
-			pthread_mutex_lock(&(table->change_free));
-			table->forks[left_fork] = 1;
-			table->forks[right_fork] = 1;
-			pthread_mutex_unlock(&(table->change_free));
-			message(table, "is sleeping");
-			message(table, "is thinking");
-			ft_usleep(table->philo->options.time_to_sleep);
+			pthread_mutex_unlock(philo->check_free);
+			ft_usleep(philo->options.time_to_eat);
+			pthread_mutex_lock(philo->change_free);
+			philo->forks[left_fork] = 1;
+			philo->forks[right_fork] = 1;
+			pthread_mutex_unlock(philo->change_free);
+			message(philo, "is sleeping");
+			ft_usleep(philo->options.time_to_sleep);
+			message(philo, "is thinking");
+/*			if (!eating(philo, left_fork, right_fork))
+				return (NULL);
+			if (!return_forks(philo, left_fork, right_fork))
+				return (NULL);*/
 		}
 		else
-			pthread_mutex_unlock(&(table->check_free));
-	}
-	if (table->status == DIED)
-		return (NULL);
-	if (table->status == FINISHED)
-	{
-		printf("ALL had eaten %d times\n", table->philo->options.times_need_to_eat);
-		return (NULL);
+		{
+			pthread_mutex_unlock(philo->check_free);
+		}
 	}
 }
 
-void	start_multithread(t_table *table, t_options *options)
+void	get_init_philo(t_philo *philo, t_options *options,
+					pthread_mutex_t *check_free, pthread_mutex_t *change_free)
 {
-	int	i;
+	int i;
 	int	forks[options->num_of_philo];
-	pthread_mutex_t	check_free;
-	pthread_mutex_t	change_free;
-
+	
 	i = 0;
 	while (i < options->num_of_philo)
 	{
 		forks[i] = 1;
+		philo[i].forks = forks;
+		philo[i].id = i + 1;
+		philo[i].options = *options;
+		philo[i].times_eaten = 0;
+		philo[i].check_free = check_free;
+		philo[i].change_free = change_free;
+		philo[i].start_time = get_time();
+		philo[i].time_of_last_meal = philo[i].start_time;
+		philo[i].status = CONTIN;
 		i++;
 	}
+}
+void	start_multithread(t_philo *philo, t_options *options)
+{
+	int	i;
+	pthread_mutex_t	check_free;
+	pthread_mutex_t	change_free;
+	
 	pthread_mutex_init(&check_free, NULL);
 	pthread_mutex_init(&change_free, NULL);
+	get_init_philo(philo, options, &check_free, &change_free);
 	i = 0;
 	while (i < options->num_of_philo)
 	{
-		table->philo[i].id = i + 1;
-		table->philo[i].options = *options;
-		table->philo[i].time_of_last_meal = 0;
-		table->philo[i].times_eaten = 0;
+		pthread_create(&(philo[i].thread), NULL, &solution, &(philo[i]));
 		i++;
 	}
-	table->forks = forks;
-	table->check_free = &check_free;
-	table->change_free = &change_free;
-	table->start_time = get_time();
-	table->status = CONTIN;
+	pthread_mutex_destroy(&check_free);
+	pthread_mutex_destroy(&change_free);
 	i = 0;
 	while (i < options->num_of_philo)
 	{
-		table->id = table->philo[i].id;
-		pthread_create(&(table->philo[i].thread), NULL, &solution, table);
+		pthread_join(philo[i].thread, NULL);
 		i++;
 	}
-	i = 0;
-	while (i < options->num_of_philo)
-	{
-		pthread_join(table->philo[i].thread, NULL);
-		i++;
-	}
-	i = 0;
 }
 
-int	init_philo(t_options *options)
+int	init_table(t_philo *philo, char **argv)
 {
-	t_philo	*philo;
-	t_table	*table;
+	t_options options;
 	int		i;
-
-	philo = malloc(sizeof(t_philo) * options->num_of_philo);
-	table = malloc(sizeof(t_table));
-	if (!philo || !table)
-	{
-		if (philo)
-			free(philo);
-		if (table)
-			free(table);
+	
+	if (!get_options(argv, &options))
+		return (0);
+	philo = malloc(sizeof(t_philo) * options.num_of_philo);
+	if (!philo)
 		return (print_err("ERROR: Malloc!"));
-	}
-	table->philo = philo;
-	start_multithread(table, options);
-	if (!philo || !table)
-	{
-		if (philo)
-			free(philo);
-		if (table)
-			free(table);
-		return (print_err("ERROR: Malloc!"));
-	}
-	return (1);		
-}
-
-int	get_options(char **argv)
-{
-	t_options	options;
-
-	options.num_of_philo = ft_atoi(argv[1]);
-	options.time_to_die = ft_atoi(argv[2]);
-	options.time_to_eat = ft_atoi(argv[3]);
-	options.time_to_sleep = ft_atoi(argv[4]);
-	if (argv[5])
-		options.times_need_to_eat = ft_atoi(argv[6]);
-	else
-		options.times_need_to_eat = -1;
-	if (!options.num_of_philo || !options.time_to_die ||
-	!options.time_to_eat || !options.time_to_sleep || !options.times_need_to_eat)
-		return (print_err("ERROR: Parameters must be all higher 0!"));
+	start_multithread(philo, &options);
+	free(philo);
 	return (1);
 }
 
-int	main(int argc, char **argv)
+int	main()
 {
+	t_philo philo;
+	
+	int argc = 6;
+	char *argv[] = {"test", "4", "450", "200", "200", "4", NULL};
+	if (!init_table(&philo, argv))
+		return (-1);
 	if (argc < 5 || argc > 6)
 		return (print_err("ERROR: Numbers of parameters!"));
 	if (!check_args(argv))
 		return (print_err("ERROR: Parameters must be a positive numbers!"));
-	
+	return (0);
 }
